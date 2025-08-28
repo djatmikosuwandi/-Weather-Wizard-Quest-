@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petualang penyihir cuaca - Simulator Sains</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #e0f7fa; touch-action: manipulation; }
+        .bg-pattern {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2392d5e6' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; background: #d1d5db; border-radius: 9999px; outline: none; transition: background .2s; }
+        input[type=range]:hover { background: #9ca3af; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; background: #34d399; cursor: pointer; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.15); }
+        .modal-overlay { transition: opacity 0.3s ease; }
+        .modal-container { transition: transform 0.3s ease; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col items-center min-h-screen p-2 sm:p-4 bg-pattern">
+
+    <!-- Instruction Modal -->
+    <div id="instructionModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="modal-container bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center transform scale-95">
+            <div class="w-28 h-28 mx-auto -mt-20 rounded-full border-4 border-white shadow-lg bg-[#a7d7c5] flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4C9.11 4 6.6 5.64 5.35 8.04C2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5c0-2.64-2.05-4.78-4.65-4.96zM12 18c-2.21 0-4-1.79-4-4s1.79-4 4-4c.75 0 1.45.21 2.05.59c.6.38 1.25.88 1.95 1.41c-1.33.53-2.3 1.76-2.3 3.19c0 .34.05.67.13.98c-.28.01-.56.02-.83.02z"/>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-700 mt-4">Saatnya Berkreasi!</h2>
+            <p class="text-slate-600 mt-2">Gunakan tiga pengatur di sebelah kanan untuk mengubah cuaca. Geser-geser dan lihat keajaiban apa yang bisa kamu buat di kanvas!</p>
+            <button id="closeModalBtn" class="w-full mt-6 bg-emerald-400 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-transform transform hover:scale-105">Aku Mengerti!</button>
+        </div>
+    </div>
+    
+    <!-- How To Use Modal -->
+    <div id="howToUseModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 opacity-0 pointer-events-none">
+        <div class="modal-container bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 transform scale-95">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-gray-700">Cara Penggunaan</h2>
+                <button id="closeHowToUseModalBtn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <ul class="text-left text-slate-600 mt-4 space-y-3">
+                <li><b>Panel Kontrol:</b> Di sisi kanan, ada tiga pengatur (slider) untuk Suhu, Kelembapan, dan Angin. Geser untuk mengubah cuaca secara manual.</li>
+                <li><b>Tombol Skenario:</b> Gunakan tombol bulat (Salju, Badai, dll.) untuk langsung menciptakan kondisi cuaca tertentu.</li>
+                <li><b>Informasi Cuaca:</b> Klik tombol ini untuk membaca penjelasan singkat tentang berbagai fenomena cuaca.</li>
+                <li><b>Kontrol Audio:</b> Klik tombol audio untuk mengaktifkan atau menonaktifkan semua suara di dalam simulasi.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- FAQ Modal -->
+    <div id="faqModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 opacity-0 pointer-events-none">
+        <div class="modal-container bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 transform scale-95 overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-gray-700">🌦️ Informasi Cuaca</h2>
+                <button id="closeFaqModalBtn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div class="mt-4 space-y-2 text-left">
+                <h3 class="font-bold text-lg mt-4">Pertanyaan Umum</h3>
+                <details class="bg-gray-100 p-3 rounded-lg">
+                    <summary class="font-semibold cursor-pointer">Kenapa bisa terjadi hujan?</summary>
+                    <p class="mt-2 text-sm text-slate-700">Bayangkan matahari memanaskan air di laut dan membuatnya menguap menjadi titik-titik air kecil di udara. Titik-titik ini berkumpul membentuk awan. Ketika awan sudah terlalu berat, airnya akan jatuh kembali ke bumi sebagai hujan!</p>
+                </details>
+                <details class="bg-gray-100 p-3 rounded-lg">
+                    <summary class="font-semibold cursor-pointer">Kenapa salju turun?</summary>
+                    <p class="mt-2 text-sm text-slate-700">Salju itu seperti hujan, tapi terjadi saat cuaca sangat dingin. Ketika titik-titik air di awan menjadi beku, mereka berubah menjadi kristal es yang cantik dan jatuh ke bawah sebagai kepingan salju.</p>
+                </details>
+                 <details class="bg-gray-100 p-3 rounded-lg">
+                    <summary class="font-semibold cursor-pointer">Bagaimana petir terbentuk?</summary>
+                    <p class="mt-2 text-sm text-slate-700">Di dalam awan badai, ada banyak partikel es dan air yang saling bergesekan. Gesekan ini menciptakan listrik statis, seperti saat kamu menggosok balon ke rambut. Ketika listriknya sudah sangat banyak, ia akan melompat keluar sebagai kilatan cahaya besar yang kita sebut petir!</p>
+                </details>
+                 <details class="bg-gray-100 p-3 rounded-lg">
+                    <summary class="font-semibold cursor-pointer">Apa itu badai (topan)?</summary>
+                    <p class="mt-2 text-sm text-slate-700">Badai atau topan adalah angin raksasa yang berputar sangat kencang di atas lautan yang hangat. Angin ini terbentuk karena udara panas dan lembap naik dengan cepat, menciptakan pusaran besar yang membawa hujan deras dan angin kencang.</p>
+                </details>
+
+                <hr class="my-4">
+                <h3 class="font-bold text-lg">Tujuan Pembelajaran Detail</h3>
+                <details class="bg-gray-100 p-3 rounded-lg">
+                    <summary class="font-semibold cursor-pointer">🌦️ Pemahaman Konsep Dasar Cuaca</summary>
+                    <ul class="mt-2 text-sm text-slate-700 list-disc list-inside space-y-1">
+                        <li>Mengidentifikasi 3 faktor utama cuaca: Suhu ☀️, Kelembapan 💧, dan Angin 🌬️.</li>
+                        <li>Menjelaskan hubungan sebab-akibat (contoh: kelembapan tinggi → awan).</li>
+                    </ul>
+                </details>
+                <details class="bg-gray-100 p-3 rounded-lg">
+                    <summary class="font-semibold cursor-pointer">🔄 Proses Siklus Air & Fenomena Alam</summary>
+                     <ul class="mt-2 text-sm text-slate-700 list-disc list-inside space-y-1">
+                        <li>Memodelkan siklus air: Penguapan → Kondensasi → Hujan/Salju.</li>
+                        <li>Membedakan karakteristik badai petir, topan, dan hujan salju.</li>
+                    </ul>
+                </details>
+                <details class="bg-gray-100 p-3 rounded-lg">
+                    <summary class="font-semibold cursor-pointer">🧪 Keterampilan Ilmiah</summary>
+                     <ul class="mt-2 text-sm text-slate-700 list-disc list-inside space-y-1">
+                        <li>Melakukan eksperimen virtual dengan mengubah variabel (suhu, dll.).</li>
+                        <li>Menarik kesimpulan dari hasil simulasi.</li>
+                    </ul>
+                </details>
+                 <p class="text-xs text-center text-gray-500 mt-4">Selaras dengan Kurikulum IPA SD/MI (KD 3.7).</p>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="w-full max-w-6xl mx-auto">
+        <header class="text-center mb-4">
+            <div class="flex flex-wrap sm:flex-nowrap justify-between items-start gap-2">
+                <div class="text-left">
+                    <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-700">Petualang penyihir cuaca</h1>
+                    <p class="text-sm sm:text-base text-slate-600 mt-1">Belajar tentang sains dengan cara yang menyenangkan.</p>
+                </div>
+                <button id="openHowToUseModalBtn" class="bg-white/80 hover:bg-white text-gray-600 font-semibold py-2 px-4 rounded-lg shadow-md transition text-sm flex-shrink-0">
+                    Cara Penggunaan
+                </button>
+            </div>
+            <div class="mt-4 bg-white/80 p-3 rounded-lg text-slate-600 text-sm shadow-md text-left">
+                <p>💡 <b>Petunjuk:</b> Geser pengatur di panel kanan untuk menciptakan cuacamu sendiri, atau pilih salah satu skenario di bawah ini untuk melihat keajaiban terjadi secara instan!</p>
+                <hr class="my-2 border-gray-300">
+                <p>🎯 <b>Tujuan Pembelajaran:</b> Memahami faktor cuaca (suhu, lembap, angin), proses siklus air, dan berlatih melakukan eksperimen virtual.</p>
+            </div>
+        </header>
+
+        <!-- Scenario Buttons -->
+        <div class="my-4 flex flex-wrap justify-center gap-2 sm:gap-4">
+             <button data-scenario="reset" class="scenario-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/90 shadow-lg flex flex-col items-center justify-center gap-1 text-gray-700 font-semibold hover:bg-white hover:scale-105 transition-transform border-2 border-white text-xs sm:text-base">
+                <span class="text-2xl sm:text-3xl">☀️</span>
+                <span>Cerah</span>
+            </button>
+            <button data-scenario="snow" class="scenario-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/90 shadow-lg flex flex-col items-center justify-center gap-1 text-gray-700 font-semibold hover:bg-white hover:scale-105 transition-transform border-2 border-white text-xs sm:text-base">
+                <span class="text-2xl sm:text-3xl">❄️</span>
+                <span>Salju</span>
+            </button>
+            <button data-scenario="hurricane" class="scenario-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/90 shadow-lg flex flex-col items-center justify-center gap-1 text-gray-700 font-semibold hover:bg-white hover:scale-105 transition-transform border-2 border-white text-xs sm:text-base">
+                <span class="text-2xl sm:text-3xl">🌀</span>
+                <span>Badai</span>
+            </button>
+            <button data-scenario="thunderstorm" class="scenario-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/90 shadow-lg flex flex-col items-center justify-center gap-1 text-gray-700 font-semibold hover:bg-white hover:scale-105 transition-transform border-2 border-white text-xs sm:text-base">
+                <span class="text-2xl sm:text-3xl">⚡️</span>
+                <span>Petir</span>
+            </button>
+            <button data-scenario="rain" class="scenario-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/90 shadow-lg flex flex-col items-center justify-center gap-1 text-gray-700 font-semibold hover:bg-white hover:scale-105 transition-transform border-2 border-white text-xs sm:text-base">
+                <span class="text-2xl sm:text-3xl">💧</span>
+                <span>Rintik</span>
+            </button>
+        </div>
+
+        <main class="flex flex-col lg:flex-row gap-6">
+            <div class="w-full lg:w-2/3 aspect-video lg:aspect-auto bg-white rounded-2xl shadow-xl overflow-hidden relative border-4 border-white"><canvas id="weatherCanvas"></canvas></div>
+            <div class="w-full lg:w-1/3 bg-white/90 backdrop-blur-lg p-4 sm:p-6 rounded-2xl shadow-xl flex flex-col gap-4 border-4 border-white">
+                <div>
+                    <label for="heat" class="flex items-center gap-3 text-lg font-semibold mb-2 text-gray-600"><span class="text-2xl">☀️</span> Suhu</label>
+                    <input type="range" id="heat" min="0" max="100" value="50" class="w-full">
+                </div>
+                <div>
+                    <label for="humidity" class="flex items-center gap-3 text-lg font-semibold mb-2 text-gray-600"><span class="text-2xl">💧</span> Kelembapan</label>
+                    <input type="range" id="humidity" min="0" max="100" value="20" class="w-full">
+                </div>
+                <div>
+                    <label for="wind" class="flex items-center gap-3 text-lg font-semibold mb-2 text-gray-600"><span class="text-2xl">💨</span> Angin</label>
+                    <input type="range" id="wind" min="-100" max="100" value="10" class="w-full">
+                </div>
+                <div class="flex flex-col gap-4 mt-4">
+                    <button id="resetBtn" class="w-full bg-emerald-400 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition">Atur Ulang 🔄</button>
+                    <button id="openFaqModalBtn" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition">🌦️ Informasi Cuaca</button>
+                    <button id="muteBtn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                        <span id="muteIcon">🔊</span>
+                        <span id="muteText">Audio Aktif</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('weatherCanvas'), ctx = canvas.getContext('2d');
+            const heatSlider = document.getElementById('heat'), humiditySlider = document.getElementById('humidity'), windSlider = document.getElementById('wind');
+            const resetBtn = document.getElementById('resetBtn'), muteBtn = document.getElementById('muteBtn');
+            const muteIcon = document.getElementById('muteIcon'), muteText = document.getElementById('muteText');
+            const instructionModal = document.getElementById('instructionModal'), closeModalBtn = document.getElementById('closeModalBtn');
+            const howToUseModal = document.getElementById('howToUseModal'), openHowToUseModalBtn = document.getElementById('openHowToUseModalBtn'), closeHowToUseModalBtn = document.getElementById('closeHowToUseModalBtn');
+            const faqModal = document.getElementById('faqModal'), openFaqModalBtn = document.getElementById('openFaqModalBtn'), closeFaqModalBtn = document.getElementById('closeFaqModalBtn');
+            const scenarioButtons = document.querySelectorAll('.scenario-btn');
+
+            let width, height, clouds = [], particles = [], lightning = null, hurricane = null, isMuted = false;
+            let lastWeatherState = "Cerah";
+            let isSnowing = false;
+
+            // --- SCENARIO BUTTONS ---
+            function setScenario(scenario) {
+                const transitionSlider = (slider, targetValue) => {
+                    let currentValue = parseInt(slider.value);
+                    const step = (targetValue - currentValue) / 15;
+                    let intervalCount = 0;
+                    const interval = setInterval(() => {
+                        currentValue += step;
+                        slider.value = currentValue;
+                        intervalCount++;
+                        if (intervalCount >= 15) { slider.value = targetValue; clearInterval(interval); }
+                    }, 10);
+                };
+                
+                let scenarios = {
+                    snow: { heat: 10, humidity: 85, wind: 20 },
+                    hurricane: { heat: 95, humidity: 95, wind: 80 },
+                    thunderstorm: { heat: 85, humidity: 85, wind: 40 },
+                    rain: { heat: 50, humidity: 80, wind: 30 },
+                    reset: { heat: 50, humidity: 20, wind: 10 }
+                };
+
+                const target = scenarios[scenario];
+                if (target) {
+                    transitionSlider(heatSlider, target.heat);
+                    transitionSlider(humiditySlider, target.humidity);
+                    transitionSlider(windSlider, target.wind);
+                }
+            }
+            scenarioButtons.forEach(button => {
+                button.addEventListener('click', () => setScenario(button.dataset.scenario));
+            });
+
+            // --- MODAL CONTROLS ---
+            closeModalBtn.addEventListener('click', () => {
+                instructionModal.classList.add('opacity-0', 'pointer-events-none');
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+            });
+            openHowToUseModalBtn.addEventListener('click', () => {
+                howToUseModal.classList.remove('opacity-0', 'pointer-events-none');
+            });
+            closeHowToUseModalBtn.addEventListener('click', () => {
+                howToUseModal.classList.add('opacity-0', 'pointer-events-none');
+            });
+            openFaqModalBtn.addEventListener('click', () => {
+                faqModal.classList.remove('opacity-0', 'pointer-events-none');
+            });
+            closeFaqModalBtn.addEventListener('click', () => {
+                faqModal.classList.add('opacity-0', 'pointer-events-none');
+            });
+
+            // --- SOUND SETUP ---
+            let rainSound, windSound, thunderSound;
+            const masterVolume = new Tone.Volume(0).toDestination();
+            rainSound = new Tone.Noise("white").connect(masterVolume);
+            rainSound.volume.value = -22;
+            const rainFilter = new Tone.AutoFilter("8n").set({ depth: 0.5 }).connect(masterVolume).start();
+            rainSound.connect(rainFilter);
+            thunderSound = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 10, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4, attackCurve: "exponential" } }).connect(masterVolume);
+            const thunderReverb = new Tone.Reverb({ decay: 4, wet: 0.7 }).connect(masterVolume);
+            thunderSound.connect(thunderReverb);
+            windSound = new Tone.Noise("pink").connect(masterVolume);
+            windSound.volume.value = -30;
+            const windFilter = new Tone.AutoFilter("2n").set({ baseFrequency: 200, depth: 0.8 }).connect(masterVolume).start();
+            windSound.connect(windFilter);
+            muteBtn.addEventListener('click', () => {
+                isMuted = !isMuted;
+                Tone.Destination.mute = isMuted;
+                if (isMuted) {
+                    muteIcon.textContent = '🔇';
+                    muteText.textContent = 'Audio Mati';
+                } else {
+                    muteIcon.textContent = '🔊';
+                    muteText.textContent = 'Audio Aktif';
+                }
+            });
+            function playSound(type) {
+                if (isMuted) return;
+                switch (type) {
+                    case 'thunder':
+                        thunderSound.triggerAttackRelease("C2", "1n");
+                        break;
+                }
+            }
+
+            // --- UPDATE WEATHER ---
+            function updateWeather() {
+                const heat = parseInt(heatSlider.value), humidity = parseInt(humiditySlider.value), wind = parseInt(windSlider.value);
+                particles = []; if (clouds.length < humidity / 4) createCloud();
+                let isRaining = false, isStorming = false;
+                isSnowing = false; // Reset isSnowing status
+                let isHurricane = false;
+                clouds.forEach(cloud => {
+                    cloud.x += cloud.speed + wind / 50;
+                    if (cloud.x > width + cloud.radius * 2) cloud.x = -cloud.radius * 2; if (cloud.x < -cloud.radius * 2) cloud.x = width + cloud.radius * 2;
+                    if (humidity > 65 && Math.random() < (humidity - 65) / 300) {
+                        const particleType = heat < 25 ? 'snow' : 'rain';
+                        if (particleType === 'snow') isSnowing = true; else isRaining = true;
+                        createParticle(particleType, cloud.x + (Math.random() - 0.5) * cloud.radius, cloud.y + cloud.radius / 2);
+                    }
+                });
+                clouds = clouds.filter(c => c.opacity > 0.05); if (clouds.length > humidity / 2) clouds.shift();
+                if (heat > 80 && humidity > 80) { isStorming = true; if (Math.random() < 0.015 && !lightning) { lightning = { alpha: 1 }; playSound('thunder'); } }
+                if (heat > 90 && humidity > 90) { isHurricane = true; if (!hurricane) hurricane = { x: width * 0.5, y: height * 0.75, radius: 10, angle: 0, growth: 0.5 };
+                } else { if (hurricane) hurricane.growth = -1; if (hurricane && hurricane.radius <= 0) hurricane = null; }
+                if (isHurricane) lastWeatherState = "Badai Topan"; else if (isStorming) lastWeatherState = "Badai Petir"; else if (isRaining) lastWeatherState = "Hujan"; else if (isSnowing) lastWeatherState = "Salju"; else if (humidity > 50) lastWeatherState = "Berawan"; else if (Math.abs(wind) > 50) lastWeatherState = "Berangin"; else lastWeatherState = "Cerah";
+                if (isRaining && rainSound.state !== 'started') rainSound.start(); if (!isRaining && rainSound.state === 'started') rainSound.stop();
+                if (Math.abs(wind) > 10 || isHurricane) {
+                    if (windSound.state !== 'started') windSound.start();
+                    windSound.volume.rampTo(isHurricane ? -6 : -15 + Math.abs(wind) / 10, 0.5);
+                } else {
+                    if (windSound.state === 'started') windSound.stop();
+                }
+            }
+            
+            // --- DRAWING & ANIMATION ---
+            function resizeCanvas() { 
+                const container = canvas.parentElement;
+                width = container.clientWidth;
+                height = container.clientHeight;
+                canvas.width = width;
+                canvas.height = height;
+            }
+            
+            function drawLandscape() {
+                // Sky
+                ctx.fillStyle = '#87CEEB';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Sun (only if not snowing)
+                if (!isSnowing) {
+                    const heat = parseInt(heatSlider.value);
+                    ctx.fillStyle = `rgba(255, 223, 0, ${0.8 + heat / 500})`;
+                    ctx.beginPath();
+                    ctx.arc(width * 0.85, height * 0.2, width * 0.05, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+
+                // Far mountains
+                drawMountain(width * 0.5, height * 0.7, width * 0.5, height * 0.4, '#95A5A6');
+                drawMountain(width * 0.8, height * 0.7, width * 0.4, height * 0.35, '#BDC3C7');
+
+                // Ocean
+                ctx.fillStyle = '#1E90FF';
+                ctx.fillRect(0, height * 0.7, width, height * 0.3);
+                
+                // Sandy beach area
+                ctx.fillStyle = '#FAD7A0';
+                ctx.fillRect(0, height * 0.7, width, 20);
+
+                // Island
+                ctx.fillStyle = '#F4D03F'; // Sand color
+                ctx.beginPath();
+                ctx.ellipse(width * 0.3, height * 0.85, width * 0.25, height * 0.1, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Green hill on island
+                ctx.fillStyle = '#27AE60';
+                ctx.beginPath();
+                ctx.arc(width * 0.3, height * 0.8, width * 0.1, Math.PI, Math.PI * 2, false);
+                ctx.fill();
+
+                // House on the beach
+                drawBeachHouse(width * 0.25, height * 0.75);
+
+                // Palm trees
+                drawPalmTree(width * 0.4, height * 0.78);
+                drawPalmTree(width * 0.18, height * 0.8);
+            }
+
+            function drawMountain(x, y, baseWidth, mountainHeight, color) {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(x - baseWidth / 2, y);
+                ctx.lineTo(x, y - mountainHeight);
+                ctx.lineTo(x + baseWidth / 2, y);
+                ctx.closePath();
+                ctx.fill();
+
+                // Snow cap
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.beginPath();
+                ctx.moveTo(x - (baseWidth / 5), y - mountainHeight * 0.6);
+                ctx.lineTo(x, y - mountainHeight);
+                ctx.lineTo(x + (baseWidth / 5), y - mountainHeight * 0.6);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            function drawBeachHouse(x, y) {
+                const houseWidth = width * 0.06;
+                const houseHeight = height * 0.05;
+                // House base
+                ctx.fillStyle = '#D2B48C';
+                ctx.fillRect(x, y - houseHeight, houseWidth, houseHeight);
+                // Roof
+                ctx.fillStyle = '#8B4513';
+                ctx.beginPath();
+                ctx.moveTo(x - (houseWidth * 0.1), y - houseHeight);
+                ctx.lineTo(x + (houseWidth / 2), y - houseHeight * 2);
+                ctx.lineTo(x + houseWidth + (houseWidth * 0.1), y - houseHeight);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            function drawPalmTree(x, y) {
+                const trunkHeight = height * 0.12;
+                // Trunk
+                ctx.fillStyle = '#A0522D';
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.quadraticCurveTo(x + 10, y - trunkHeight/2, x + 5, y - trunkHeight);
+                ctx.quadraticCurveTo(x - 5, y - trunkHeight/2, x - 5, y);
+                ctx.closePath();
+                ctx.fill();
+                // Leaves
+                ctx.fillStyle = '#2E8B57';
+                for (let i = 0; i < 6; i++) {
+                    ctx.save();
+                    ctx.translate(x + 5, y - trunkHeight);
+                    ctx.rotate(i * (Math.PI / 3));
+                    ctx.beginPath();
+                    ctx.moveTo(0,0);
+                    ctx.quadraticCurveTo(width * 0.02, width * 0.02, width * 0.05, 0);
+                    ctx.quadraticCurveTo(width * 0.02, -width * 0.02, 0, 0);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            function drawShip() {
+                const shipX = width * 0.7;
+                const shipY = height * 0.75;
+                const shipWidth = width * 0.08;
+                // Hull
+                ctx.fillStyle = '#8a5a44';
+                ctx.beginPath();
+                ctx.moveTo(shipX, shipY);
+                ctx.quadraticCurveTo(shipX + shipWidth/2, shipY - shipWidth/3, shipX + shipWidth, shipY);
+                ctx.lineTo(shipX + shipWidth * 0.8, shipY + shipWidth/6);
+                ctx.lineTo(shipX + shipWidth * 0.2, shipY + shipWidth/6);
+                ctx.closePath();
+                ctx.fill();
+                // Mast
+                ctx.fillStyle = '#582f0e';
+                ctx.fillRect(shipX + shipWidth/2 - 2, shipY - shipWidth/2, 4, shipWidth/2);
+                // Sail
+                ctx.fillStyle = '#fefae0';
+                ctx.beginPath();
+                ctx.moveTo(shipX + shipWidth/2 + 2, shipY - shipWidth/2 + 2);
+                ctx.lineTo(shipX + shipWidth * 0.9, shipY - shipWidth/4);
+                ctx.lineTo(shipX + shipWidth/2 + 2, shipY - 2);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            function drawTextLabels() {
+                const fontSize = width < 500 ? 14 : 18;
+                ctx.font = `bold ${fontSize}px Inter`;
+                ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+                ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+                ctx.shadowBlur = 5;
+                ctx.fillText("Laut", 30, height - 15);
+                ctx.fillText("Gunung", width - (width < 500 ? 70 : 100), height * 0.7 - 10);
+                
+                const statusFontSize = width < 500 ? 18 : 22;
+                ctx.font = `bold ${statusFontSize}px Inter`;
+                ctx.fillText(lastWeatherState, 20, 40);
+                ctx.shadowBlur = 0;
+            }
+
+            function createCloud() { if (Math.random() < parseInt(humiditySlider.value) / 200) { clouds.push({ x: Math.random() * width, y: Math.random() * height * 0.4, radius: width * 0.03 + Math.random() * 15, speed: (parseInt(windSlider.value) / 100) * 2, opacity: 0.8 + Math.random() * 0.2 }); } }
+            
+            function createParticle(type, x, y) {
+                particles.push({
+                    x: x, y: y, type: type,
+                    speed: type === 'rain' ? 4 + Math.random() * 4 : 0.5 + Math.random() * 0.5, // Slower snow
+                    drift: (Math.random() - 0.5) * 0.5, // Rain drift
+                    length: type === 'rain' ? 15 : 5,
+                    size: type === 'snow' ? 12 + Math.random() * 12 : 5, // Varied snow size
+                    opacity: 0.9
+                });
+            }
+
+            function drawWeather() {
+                const heat = parseInt(heatSlider.value), humidity = parseInt(humiditySlider.value);
+                clouds.forEach(cloud => { 
+                    const isDarkCloud = (heat > 80 && humidity > 80) || isSnowing;
+                    const grey = isDarkCloud ? 120 : 240; 
+                    ctx.fillStyle = `rgba(${grey}, ${grey}, ${grey+15}, ${cloud.opacity})`; 
+                    ctx.beginPath(); ctx.arc(cloud.x, cloud.y, cloud.radius, 0, Math.PI * 2); ctx.fill(); ctx.arc(cloud.x + cloud.radius * 0.6, cloud.y + 10, cloud.radius * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.arc(cloud.x - cloud.radius * 0.6, cloud.y + 10, cloud.radius * 0.7, 0, Math.PI * 2); ctx.fill(); 
+                });
+                
+                particles.forEach(p => {
+                    p.y += p.speed;
+                    p.x += parseInt(windSlider.value) / 50 + p.drift;
+                    if (p.y > height) p.opacity = 0;
+
+                    if (p.type === 'rain') {
+                        ctx.strokeStyle = `rgba(139, 173, 222, ${p.opacity})`;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p.x, p.y + p.length);
+                        ctx.stroke();
+                    } else { // Snow
+                        ctx.font = `${p.size}px Inter`;
+                        ctx.globalAlpha = p.opacity;
+                        ctx.fillText('❄️', p.x, p.y);
+                        ctx.globalAlpha = 1.0; // Reset alpha
+                    }
+                });
+
+                particles = particles.filter(p => p.opacity > 0);
+                if (lightning) { ctx.fillStyle = `rgba(255, 255, 224, ${lightning.alpha})`; ctx.fillRect(0, 0, width, height); lightning.alpha -= 0.05; if (lightning.alpha <= 0) lightning = null; }
+                if (hurricane) { hurricane.angle += 0.1; if (hurricane.radius < width / 4 && hurricane.growth > 0) hurricane.radius += hurricane.growth; else if (hurricane.growth < 0) hurricane.radius += hurricane.growth; ctx.save(); ctx.translate(hurricane.x, hurricane.y); ctx.rotate(hurricane.angle); for (let i = 0; i < 100; i++) { const r = hurricane.radius * (i / 100); const angle = i * 0.5; const x = r * Math.cos(angle); const y = r * Math.sin(angle); ctx.fillStyle = `rgba(240, 240, 255, ${0.6 - r / (hurricane.radius * 2)})`; ctx.beginPath(); ctx.arc(x, y, (1 - i/100) * 30, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
+            }
+            
+            function animate() {
+                updateWeather(); 
+                drawLandscape(); 
+                drawShip();
+                drawWeather();
+                drawTextLabels();
+                requestAnimationFrame(animate); 
+            }
+            
+            window.addEventListener('resize', resizeCanvas); 
+            resetBtn.addEventListener('click', () => { setScenario('reset'); });
+            
+            resizeCanvas(); 
+            animate();
+        });
+    </script>
+</body>
+</html>
